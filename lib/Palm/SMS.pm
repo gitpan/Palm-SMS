@@ -13,7 +13,7 @@
 # Written by Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
 #
 #
-# $Id: SMS.pm,v 1.3 2005/01/02 10:23:15 lolo Exp $
+# $Id: SMS.pm,v 1.5 2005/01/20 23:04:01 lolo Exp $
 
 package Palm::SMS;
 
@@ -106,8 +106,8 @@ rappresentation:
 
   use Date::Format;
   ...
-  $timestamp = time2str( "%T", $record->{timestamp}, "GMT")
-             . time2str(" %Z", $record->{timestamp}       );
+  $timestamp = time2str("%T %%Z",   $record->{timestamp}, "GMT");
+  $timestamp = time2str($timestamp, $record->{timestamp}       );
 
 =item folder
 
@@ -146,6 +146,7 @@ Please, refer to the L<ParseRecord()|/"ParseRecord"> method.
 =head1 METHODS
 
 =cut
+
 #'
 
 @folders = (                            # SMS folder names
@@ -175,6 +176,7 @@ and an empty record list.
 Use this method if you're creating a SMS PDB from scratch.
 
 =cut
+
 #'
 sub new {
   my $classname = shift;
@@ -248,7 +250,7 @@ sub new_Record {
 
 ParseRecord() returns a parsed representation of the record, typically
 as a reference to a record object or anonymous hash.  It is
-automatically called from within L<Palm::PDB(3)> and, as such, is not
+automatically called from within L<Palm::PDB> and, as such, is not
 intented to be used directly from applications.
 
 The record structure which an SMS posses is:
@@ -266,7 +268,7 @@ The record structure which an SMS posses is:
 
 I<folder> field value is copied from I<category> field which is
 computed by Palm::PDB and then delted since there is no application
-info block (see L<Palm::StdAppInfo(3)>) in the PDB file.
+info block (see L<Palm::StdAppInfo>) in the PDB file.
 
 I<unknown3> is empty for messages belonging to category 1 (folder
 I<Sent>).
@@ -374,7 +376,7 @@ used directly from applications.
 Because there are chunk of record data whose function is unknown (see
 L<ParseRecord()|/ParseRecord>), this method may produce an invalid
 result, expecially when passed record was created from scratch via
-L<new_Record()/new_Record>.
+L<new_Record()|/new_Record>.
 
 This method is granted to work if the record being packed has been
 unpacked from an existing PDB and no information has been added.
@@ -456,9 +458,9 @@ messages, hopefully attaching a patch which corrects the shortcoming.
 
 =head1 SEE ALSO
 
-L<Palm::PDB(3)> by Andrew Arensburger E<lt>arensb@ooblick.comE<gt>
+L<Palm::PDB> by Andrew Arensburger E<lt>arensb@ooblick.comE<gt>
 
-L<smssync(1)> v 1.0 by Janne Mäntyharju E<lt>janne.mantyharju@iki.fiE<gt>
+L<smssync> v 1.0 by Janne Mäntyharju E<lt>janne.mantyharju@iki.fiE<gt>
 
 =head1 AUTHOR
 

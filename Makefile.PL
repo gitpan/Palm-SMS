@@ -1,13 +1,13 @@
 # Makefile.PL
 #
-# $Id: Makefile.PL,v 1.3 2005/01/02 12:48:23 lolo Exp $
+# $Id: Makefile.PL,v 1.4 2005/01/28 20:57:42 lolo Exp $
 
 use 5.008004;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME              => 'Palm::SMS',
-    VERSION           => '0.01',
+    VERSION           => '0.02',
     EXE_FILES         => ['bin/smsdump'],
     NO_META           => 1, ## META.yml manually maintained
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005

@@ -1,3 +1,26 @@
+2005-01-28  Lorenzo Cappelletti  <lorenzo.cappelletti@email.com>
+
+	* META.yml: Added YAML header as an attempt to overcome the
+	YAML_PARSE_ERR_NO_SEPARATOR signled by the robot at PAUSE.
+
+2005-01-21  Lorenzo Cappelletti  <lorenzo.cappelletti@email.com>
+
+	* lib/Palm/SMS.pm, bin/smsdump: Enanched and cleaned documentation
+	via podchecker.
+
+2005-01-20  Lorenzo Cappelletti  <lorenzo.cappelletti@email.com>
+
+	* bin/smsdump: Added --filter switch that allows to selectively
+	include messages to print.
+
+2005-01-03  Lorenzo Cappelletti  <lorenzo.cappelletti@email.com>
+
+	* bin/smsdump: Added --text-format option with which txt type
+	output can be widly customized.
+
+	* lib/Palm/SMS.pm, bin/smsdump: Added --date-format option as to
+	specify how message timestamps should be formatted.
+
 2005-01-02  Lorenzo Cappelletti  <lorenzo.cappelletti@email.com>
 
 	* MANIFEST: Forgot t/sample.pdb.

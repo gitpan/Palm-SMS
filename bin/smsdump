@@ -11,11 +11,11 @@
 # Written by Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
 #
 #
-# $Id: smsdump,v 1.4 2004/12/31 01:03:06 lolo Exp $
+# $Id: smsdump,v 1.9 2005/01/28 20:57:42 lolo Exp $
 
 use strict;
 use warnings;
-use Getopt::Long;
+use Getopt::Long qw(:config bundling);
 use Pod::Usage;
 use Date::Format;       # time2str()
 use File::Basename;     # basename()
@@ -24,7 +24,7 @@ use Text::Wrap;         # wrap()
 use Palm::PDB;
 use Palm::SMS;          # Load handler
 
-my $VERSION = 0.01;
+my $VERSION = 0.02;
 
 ##############################################################################
 #
@@ -36,8 +36,22 @@ my $pdb         = new Palm::PDB;        # PDB reference
 my $backend     = "backend_";           # what output format?
 my $input;                              # input file
 
+my $date_format = "%a %b %e %T %%Z %Y";
+my $filter      = 1;
 my $help        = 0;
 my $output      = "-";
+my $text_format = '($folder==0?"From":'                       # folder
+                . '($folder==1?"To":'
+                . '($folder==2?"To (pending)":"(Uh?)"))).'
+                . '" ".'
+                . '($name?"$name ":"").'                      # name
+                . '($firstName?"$firstName ":"").'            # firstName
+                . '($name||$firstName?"($phone)":"$phone").'  # phone
+                . '" ".'
+                . '$timestamp.'                               # timestamp
+                . '"\n".'
+                . '$text.'                                    # text
+                . '"\n\n"';
 my $type        = "txt";
 my $version     = 0;
 
@@ -45,8 +59,11 @@ my $version     = 0;
 #
 # Command line parsing
 #
-GetOptions("help|h"             => \$help,
+GetOptions("date-format|d=s"    => \$date_format,
+           "filter|F=s"         => \$filter,
+           "help|h"             => \$help,
            "output|o=s"         => \$output,
+           "text-format|f=s"    => \$text_format,
            "type|t=s"           => \$type,
            "version"            => \$version,
            )
@@ -121,25 +138,20 @@ sub backend_txt ($) {
 
     $record = $pdb->{records}[$i];
 
-    $folder     = $record->{folder} == 0 && "To"           ||
-                  $record->{folder} == 1 && "From"         ||
-                  $record->{folder} == 2 && "To (pending)" ||
-                                            "(Uh?)";
+    next
+      if filter($record);
+
+    $folder     = $record->{folder};
     $name       = $record->{name} || "";
-    $name      .= " " if ($name);
     $firstName  = $record->{firstName} || "";
-    $firstName .= " " if ($firstName);
     $phone      = $record->{phone};
-    $phone      = "($phone)" if ($name or $firstName);
-    $timestamp  = time2str("%a %b %e %T", $record->{timestamp}, 'GMT')
-                . time2str(" %Z %Y", $record->{timestamp});
+    $timestamp  = time2str(time2str($date_format,
+                                    $record->{timestamp},
+                                    'GMT'),
+                           $record->{timestamp});
     $text       = wrap("", "", $record->{text});
 
-    print <<EOT;
-$folder $name$firstName$phone on $timestamp
-$text
-
-EOT
+    print eval $text_format;
 
   }
 
@@ -166,6 +178,9 @@ sub backend_raw ($) {
 
     $record = $pdb->{records}[$i];
 
+    next
+      if filter($record);
+
     foreach my $field (@fields) {
       push @values, $record->{$field};
     }
@@ -180,6 +195,25 @@ sub backend_raw ($) {
 
 }
 
+
+##############################################################################
+#
+# Message filter
+#
+sub filter ($) {
+  my $record = shift;
+
+  my $id         = $record->{id};
+  my $folder     = $Palm::SMS::folders[$record->{folder}];
+  my $firstName  = $record->{firstName} || "";
+  my $name       = $record->{name} || "";
+  my $phone      = $record->{phone};
+  my $timestamp  = $record->{timestamp};
+  my $text       = $record->{text};
+
+  return not eval $filter;
+}
+
 __END__
 
 =head1 NAME
@@ -188,15 +222,44 @@ smsdump - converter for SMS PDBs to human readable formats
 
 =head1 SYNOPSIS
 
-smsdump [options] file
+smsdump
+[ B<-F filter-expr> ]
+[ B<-d date-format> ]
+[ B<-f txt-expr> ]
+[ B<-o file> ]
+[ B<-t raw|txt> ]
+B<file>
+
+smsdump B<--help>
+
+smsdump B<--version>
 
 =head1 OPTIONS
 
 =over
 
+=item B<-F> EXPR, B<--filter>=EXPR
+
+EXPR is a Perl expression (default: C<1>) that will be eval()'ed
+against record field values.  If EXPR is true, record is process,
+otherwise it is skipped.
+
+=item B<-d> FORMAT, B<--date-format>=FORMAT
+
+Specify how to convert message timestamp using conventions described in
+L<Date::Format>.  Note that conversion is applied twice, to allow
+corret C<%Z> handling (see B<timestamp> field explanation in
+L<Palm::SMS(3) Fields|Palm::SMS/Fields> section).  Default is C<%a %b %e
+%T %%Z %Y>.
+
 =item B<-h>, B<--help>
 
-Print a brief help message and exits.
+Print a brief help message and exit.
+
+=item B<-f> EXPR, B<--text-format>=EXPR
+
+EXPR is a Perl expression that will be eval()'ed in order to obtain the
+B<txt> type output.
 
 =item B<-o> FILE, B<--output>=FILE
 
@@ -205,18 +268,22 @@ Write output to C<FILE> instead of standard output.
 =item B<-t> TYPE, B<--type>=TYPE
 
 Define which type of format the output should be written in.
-Possible values are C<txt> (default) and C<raw>.  See L<smsdump(1)'s
-DESCRIPTION|smsdump/DESCRIPTION> section for further explanations.
+Possible values are C<txt> (default) and C<raw>.  See L<smsdump(1)
+Description|smsdump/DESCRIPTION> section for further explanations.
+
+=item B<--version>
+
+Print program version number and copyleft information.
 
 =back
 
 =head1 DESCRIPTION
 
 B<smsdump> is a small utility written in Perl.  It is shipped with and
-makes use of L<Palm::SMS(3)> Perl module in order to provide an easy
+makes use of L<Palm::SMS> Perl module in order to provide an easy
 and quick way to extract your SMS messages out of a Palm PDB database
 file and convert them to a human readable format.  The PDB format
-understood is that of L<Perl::SMS(3)>'s.
+understood is that of L<Palm::SMS>'s.
 
 B<smsdump> output format can be chosen via switch C<--type> among
 several possibilities enlisted below.
@@ -226,7 +293,22 @@ several possibilities enlisted below.
 =item B<txt>
 
 This is the B<default> format.  It writes the SMS messages as plain
-text.
+text.  The output is obtained by setting B<--text-format> option to
+(you can cut-and-paste the following lines into your bash prompt):
+
+  --text-format '
+  ($folder==0?"From":                           # folder
+  ($folder==1?"To":
+  ($folder==2?"To (pending)":"(Uh?)"))).
+  " ".
+  ($name?"$name ":"").                          # name
+  ($firstName?"$firstName ":"").                # firstName
+  ($name||$firstName?"($phone)":"$phone").      # phone
+  " ".
+  $timestamp.                                   # timestamp
+  "\n".
+  $text.                                        # text
+  "\n\n"'
 
 =item B<raw>
 
@@ -239,9 +321,24 @@ plain characters, C<\n> and C<\\> rispectively.
 
 =back
 
+=head2 FILTERING
+
+C<--filter=EXPR> option allows to include only certain messages in the
+output.  C<EXPR> can be any valid Perl expression which is evaluated
+for each PDB record.  Only B<$id>, B<$folder> (converted to string),
+B<$firstName>, B<$name>, B<$phone>, B<$timestamp>, and B<$text> (see
+L<Palm::SMS(3) Fields|Palm::SMS/Fields> section) are valid variables,
+others leading to unpredictable results.  If C<EXPR> returned value is
+true, message is processed, otherwise it is skipped.
+
+For example, in order to print out all the message sent to Jo and
+John, the switch should be set to something like:
+
+  --filter='$name =~ /^Jo/ and $folder eq "Inbox"'
+
 =head1 SEE ALSO
 
-L<Palm::SMS(3)>, L<Palm::PDB(3)>, L<smssync(1)>
+L<Palm::SMS>, L<Palm::PDB>, L<smssync>
 
 =head1 AUTHOR
 
