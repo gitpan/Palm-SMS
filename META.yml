@@ -1,0 +1,19 @@
+# META.yml
+#
+# $Id: META.yml,v 1.3 2005/01/02 12:48:23 lolo Exp $
+
+name:         Palm-SMS
+version:      0.01
+license:      GPL
+installdirs:  site
+distribution_type: module
+requires:
+  Palm::Raw 0
+
+recommends:
+  Palm::PDB 0
+  Getopt::Long 0
+  Pod::Usage 0
+  Date::Format 0
+  File::Basename 0
+  Text::Wrap 0

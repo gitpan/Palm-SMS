@@ -1,0 +1,268 @@
+#!/usr/bin/perl
+#
+# Dump a SMS PDB database.
+#
+# This code is provided "as is" with no warranty.  The exact terms
+# under which you may use and (re)distribute it are detailed
+# in the GNU General Public License, in the file COPYING.
+#
+# Copyright (C) 2005 Free Software Foundation, Inc.
+#
+# Written by Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
+#
+#
+# $Id: smsdump,v 1.4 2004/12/31 01:03:06 lolo Exp $
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Pod::Usage;
+use Date::Format;       # time2str()
+use File::Basename;     # basename()
+use Text::Wrap;         # wrap()
+
+use Palm::PDB;
+use Palm::SMS;          # Load handler
+
+my $VERSION = 0.01;
+
+##############################################################################
+#
+# Init
+#
+$Text::Wrap::break = '[\s:.!?]';
+my $progname    = basename($0);         # that's me!
+my $pdb         = new Palm::PDB;        # PDB reference
+my $backend     = "backend_";           # what output format?
+my $input;                              # input file
+
+my $help        = 0;
+my $output      = "-";
+my $type        = "txt";
+my $version     = 0;
+
+##############################################################################
+#
+# Command line parsing
+#
+GetOptions("help|h"             => \$help,
+           "output|o=s"         => \$output,
+           "type|t=s"           => \$type,
+           "version"            => \$version,
+           )
+  or pod2usage(2);
+
+# help
+pod2usage(1)
+  if $help;
+
+# version
+print << "EOV"
+$progname $VERSION (Palm::SMS)
+Written by Lorenzo Cappelletti <lorenzo.cappelletti\@email.it>
+
+Copyright (C) 2005 Free Software Foundation, Inc.
+This program comes with NO WARRANTY, to the extent permitted by law.
+You may redistribute it under the terms of the GNU General Public
+License; see the file named COPYING for details.
+EOV
+  and exit 0
+  if $version;
+
+# type
+$type =~ m/^(txt|raw)$/i
+  or die "$progname: invalid format type: $type\n";
+$backend .= $type;
+
+# input file
+$#ARGV >= 0
+  or die "$progname: missing input file\n";
+$input = $ARGV[0];
+-f $input
+  or die "$progname: not a plain file: $input\n";
+
+##############################################################################
+#
+# Main
+#
+open(STDOUT, ">$output")
+  or die "can't write to \"$output\": $!\n";
+
+$pdb->Load($input);
+{ # Checks went well. We're safe now.
+  no strict "refs";
+  &{$backend}($pdb);
+};
+
+END {
+  # Reports error if cannot write for any reason (e.g., disk full)
+  close(STDOUT)
+    or die "$progname: can't close output: $!\n";
+}
+
+##############################################################################
+#
+# TXT backend
+#
+sub backend_txt ($) {
+  my $pdb;      # PDB reference
+
+  $pdb = shift;
+
+  for (my $i = 0; $i <= $#{$pdb->{records}}; $i++) {
+    my $record;         # record reference
+                        # Record fields:
+    my $name;           #
+    my $firstName;      #
+    my $phone;          #
+    my $timestamp;      #
+    my $folder;         #
+    my $text;           #
+
+    $record = $pdb->{records}[$i];
+
+    $folder     = $record->{folder} == 0 && "To"           ||
+                  $record->{folder} == 1 && "From"         ||
+                  $record->{folder} == 2 && "To (pending)" ||
+                                            "(Uh?)";
+    $name       = $record->{name} || "";
+    $name      .= " " if ($name);
+    $firstName  = $record->{firstName} || "";
+    $firstName .= " " if ($firstName);
+    $phone      = $record->{phone};
+    $phone      = "($phone)" if ($name or $firstName);
+    $timestamp  = time2str("%a %b %e %T", $record->{timestamp}, 'GMT')
+                . time2str(" %Z %Y", $record->{timestamp});
+    $text       = wrap("", "", $record->{text});
+
+    print <<EOT;
+$folder $name$firstName$phone on $timestamp
+$text
+
+EOT
+
+  }
+
+}
+
+##############################################################################
+#
+# RAW backend
+#
+sub backend_raw ($) {
+  my $pdb;      # PDB reference
+  my @fields;   # reported record fields
+
+  $pdb = shift;
+  @fields = qw(id folder firstName name phone timestamp text);
+
+  # header
+  print join("\0", @fields), "\n";
+
+  for (my $i = 0; $i <= $#{$pdb->{records}}; $i++) {
+    my $record;         # record reference
+    my @values;         # record values
+    my $line;           # formatted line
+
+    $record = $pdb->{records}[$i];
+
+    foreach my $field (@fields) {
+      push @values, $record->{$field};
+    }
+    $line = join("\0", @values);
+
+    # escape
+    $line =~ s/\\/\\\\/g;
+    $line =~ s/\n/\\n/g;
+
+    print $line, "\n";
+  }
+
+}
+
+__END__
+
+=head1 NAME
+
+smsdump - converter for SMS PDBs to human readable formats
+
+=head1 SYNOPSIS
+
+smsdump [options] file
+
+=head1 OPTIONS
+
+=over
+
+=item B<-h>, B<--help>
+
+Print a brief help message and exits.
+
+=item B<-o> FILE, B<--output>=FILE
+
+Write output to C<FILE> instead of standard output.
+
+=item B<-t> TYPE, B<--type>=TYPE
+
+Define which type of format the output should be written in.
+Possible values are C<txt> (default) and C<raw>.  See L<smsdump(1)'s
+DESCRIPTION|smsdump/DESCRIPTION> section for further explanations.
+
+=back
+
+=head1 DESCRIPTION
+
+B<smsdump> is a small utility written in Perl.  It is shipped with and
+makes use of L<Palm::SMS(3)> Perl module in order to provide an easy
+and quick way to extract your SMS messages out of a Palm PDB database
+file and convert them to a human readable format.  The PDB format
+understood is that of L<Perl::SMS(3)>'s.
+
+B<smsdump> output format can be chosen via switch C<--type> among
+several possibilities enlisted below.
+
+=over 6
+
+=item B<txt>
+
+This is the B<default> format.  It writes the SMS messages as plain
+text.
+
+=item B<raw>
+
+This format is meant for further processing of your messages when you
+can not or do not want to use Perl and L<Palm::SMS>.  Each line of the
+output represents a message from the input PDB file.  A line consists
+of a NULL (e.g., C<\0>) separated list of values where new lines
+(e.g., C<\n>) and backslashes (e.g., C<\>) have been escaped with two
+plain characters, C<\n> and C<\\> rispectively.
+
+=back
+
+=head1 SEE ALSO
+
+L<Palm::SMS(3)>, L<Palm::PDB(3)>, L<smssync(1)>
+
+=head1 AUTHOR
+
+B<smsdump> is written and maintained by Lorenzo Cappelletti
+E<lt>lorenzo.cappelletti@email.itE<gt>.
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+This program is Copyright 2005 by Lorenzo Cappelletti.  This program
+is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free
+Software Foundation, either version 2 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111, USA.
+
+=cut
