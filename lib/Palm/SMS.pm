@@ -13,7 +13,7 @@
 # Written by Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
 #
 #
-# $Id: SMS.pm,v 1.5 2005/01/20 23:04:01 lolo Exp $
+# $Id: SMS.pm,v 1.1 2009/01/10 16:17:59 drhyde Exp $
 
 package Palm::SMS;
 
@@ -22,7 +22,7 @@ use warnings;
 use Palm::Raw();
 use vars qw($VERSION @ISA @folders);
 
-$VERSION = 0.01;
+$VERSION = 0.03;
 
 @ISA = qw(Palm::Raw);
 
@@ -143,11 +143,58 @@ Please, refer to the L<ParseRecord()|/"ParseRecord"> method.
 
 =back
 
+=head2 Fields for the Treo 680
+
+The Treo 680 uses different software, and Palm have not documented its
+message format.  Consequently only some information is available, and
+some records that are extracted are extracted incorrectly.  The
+following fields are available, and have been reverse-engineered from
+a single sample database.  Consequently, you should treat their
+values with suspicion.
+
+Treo 680 databases are read-only.
+
+If the Palm::Treo680MessagesDB module is available, then that will be
+used instead.  Over time, that module is intended to do a better job,
+as and when I figure out new bits of the puzzle.
+
+=over
+
+=item device
+
+This will always be "Treo 680"
+
+=item direction
+
+The direction of the SMS relative to your phone.  This will be either
+'inbound' or 'outbound'
+
+=item number
+
+The other party's phone number (same as for any other device)
+
+=item name
+
+The other party's name (same as for any other device)
+
+=item text
+
+The text of the message (same as for any other device)
+
+=item type
+
+A number representing the type of message.  If this is 'unknown' then
+none of the above fields will be populated.
+
+=item rawdata
+
+The raw binary data of the record
+
+=back
+
 =head1 METHODS
 
 =cut
-
-#'
 
 @folders = (                            # SMS folder names
   "Inbox",
@@ -163,6 +210,13 @@ my $EPOCH_1904 = 2082844800;            # Difference between Palm's
 sub import {
   &Palm::PDB::RegisterPDBHandlers(__PACKAGE__,
                                   [ "SMS!", "DATA" ],
+                                 );
+  &Palm::PDB::RegisterPDBHandlers(__PACKAGE__,
+                                  [ "HsCh", "SMct" ],
+                                 );
+  eval "use Palm::Treo680MessagesDB" ||
+      &Palm::PDB::RegisterPDBHandlers(__PACKAGE__,    # GSM Treo 680
+                                  [ "MsSt", "MsDb" ], # Messaging app v 2.6.1
                                  );
 }
 
@@ -285,6 +339,7 @@ sub ParseRecord {
   my @unpack;
 
   my $smsh;       # each record starts with "SMSh": SMS handler?
+                  # not on Treo 680
   my $unknown1;
   my $timestamp;
   my $unknown2;
@@ -295,7 +350,41 @@ sub ParseRecord {
   my $folder;
   my $text;
 
-  if ($record{category} == 0) {
+  if ($self->{creator} eq "HsCh") {
+    ($smsh,
+     $unknown1,
+     $timestamp,
+     $unknown2,
+     $text,
+    ) = unpack("a2 A4 N a24 Z* a*", $record{data});
+    if ($timestamp eq "") {$timestamp=$EPOCH_1904;}
+    else {$timestamp -= 14400;}
+    if ($smsh eq "\0\0" ) { $phone="Target"; }
+    else { $phone="Me"; }
+  } elsif($self->{creator} eq 'MsSt') { # Treo 680
+      my $buf = $record{data};
+      my $type = 256 * ord(substr($buf, 10, 1)) + ord(substr($buf, 11, 1));
+      my($dir, $num, $name, $msg) = ('', '', '', '');
+      if($type == 0x400C || $type == 0x4009) { # 4009 not used by 680?
+	  $dir = ($type == 0x400C) ? 'inbound' : 'outbound';
+	  ($num, $name, $msg) = (split(/\00+/, substr($buf, 34)))[0, 1, 3];
+	  $msg = substr($msg, 1);
+      } elsif($type == 0) {
+	  $dir = 'outbound';
+	  ($num, $name, $msg) = split(/\00+/, substr($buf, 0x4C), 3);
+	  $msg =~ s/^.{9}//s;
+	  $msg =~ s/\00.*$//s;
+      } elsif($type == 0x0002) {
+	  $dir = 'outbound';
+	  ($num, $name, $msg) = split(/\00+/, substr($buf, 0x46), 3);
+	  $msg =~ s/^.Trsm....//s;
+	  $msg =~ s/\00.*$//s;
+      } else {
+          $type = 'unknown';
+      }
+      @record{qw(device type direction phone name text rawdata)} =
+          ("Treo 680", $type, $dir, $num, $name, $msg, $buf);
+  } elsif ($record{category} == 0) {
     ### Inbox folder ###
     my $nameFlag;       # whether name and firstName are available
     my $extra;          # temporary string
@@ -348,17 +437,19 @@ sub ParseRecord {
   $timestamp -= $EPOCH_1904;
 
   # Assign extracted values to record
-  $record{name}      = $name;
-  $record{firstName} = $firstName;
-  $record{phone}     = $phone;
-  $record{timestamp} = $timestamp;
-  $record{folder}    = $record{category};
-  $record{text}      = $text;
+  if($self->{creator} ne 'MsSt') {
+      $record{name}      = $name;
+      $record{firstName} = $firstName;
+      $record{phone}     = $phone;
+      $record{timestamp} = $timestamp;
+      $record{folder}    = $record{category};
+      $record{text}      = $text;
 
-  $record{smsh}      = $smsh;
-  $record{unknown1}  = $unknown1;
-  $record{unknown2}  = $unknown2;
-  $record{unknown3}  = $unknown3;
+      $record{smsh}      = $smsh;
+      $record{unknown1}  = $unknown1;
+      $record{unknown2}  = $unknown2;
+      $record{unknown3}  = $unknown3;
+  }
 
   delete $record{data};
 
@@ -460,15 +551,21 @@ messages, hopefully attaching a patch which corrects the shortcoming.
 
 L<Palm::PDB> by Andrew Arensburger E<lt>arensb@ooblick.comE<gt>
 
+L<Palm::Treo680MessagesDB>
+
 L<smssync> v 1.0 by Janne Mäntyharju E<lt>janne.mantyharju@iki.fiE<gt>
 
-=head1 AUTHOR
+=head1 AUTHOR and MAINTAINER
 
-Lorenzo Cappelletti E<lt>lorenzo.cappelletti@email.itE<gt>
+Lorenzo Cappelletti E<lt>lorenzo.cappelletti@email.itE<gt> with some
+contributions from David Cantrell E<lt>david@cantrell.org.ukE<gt>.
+
+David Cantrell is now the primary maintainer.
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-This program is Copyright 2005 by Lorenzo Cappelletti.  This program
+This program is Copyright 2005-2009 by Lorenzo Cappelletti and
+David Cantrell.  This program
 is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free
 Software Foundation, either version 2 of the License, or (at your

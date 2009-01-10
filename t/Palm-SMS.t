@@ -4,7 +4,7 @@
 # `make test'. After `make install' it should work as `perl
 # Palm-SMS.t'
 #
-# $Id: Palm-SMS.t,v 1.1.1.1 2004/12/31 00:10:12 lolo Exp $
+# $Id: Palm-SMS.t,v 1.1 2009/01/10 16:17:59 drhyde Exp $
 
 use Test::More;
 

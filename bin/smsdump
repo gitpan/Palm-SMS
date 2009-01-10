@@ -11,7 +11,7 @@
 # Written by Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
 #
 #
-# $Id: smsdump,v 1.9 2005/01/28 20:57:42 lolo Exp $
+# $Id: smsdump,v 1.1 2009/01/10 16:17:59 drhyde Exp $
 
 use strict;
 use warnings;
@@ -24,7 +24,7 @@ use Text::Wrap;         # wrap()
 use Palm::PDB;
 use Palm::SMS;          # Load handler
 
-my $VERSION = 0.02;
+my $VERSION = 0.03;
 
 ##############################################################################
 #
@@ -40,18 +40,28 @@ my $date_format = "%a %b %e %T %%Z %Y";
 my $filter      = 1;
 my $help        = 0;
 my $output      = "-";
-my $text_format = '($folder==0?"From":'                       # folder
-                . '($folder==1?"To":'
-                . '($folder==2?"To (pending)":"(Uh?)"))).'
-                . '" ".'
-                . '($name?"$name ":"").'                      # name
-                . '($firstName?"$firstName ":"").'            # firstName
-                . '($name||$firstName?"($phone)":"$phone").'  # phone
-                . '" ".'
-                . '$timestamp.'                               # timestamp
-                . '"\n".'
-                . '$text.'                                    # text
-                . '"\n\n"';
+my $text_format = q{
+    $record->{device} eq 'Treo 680' ? (
+        $record->{type} ne 'unknown' ? (
+            ($record->{direction} eq 'outbound' ? 'From: ' : 'To: ').
+    	    $record->{name}.' ('.$record->{phone}.")\n".
+	    "$text\n\n"
+	) : ()
+    ) : (
+        ($folder==0?"From":                       # folder
+        ($folder==1?"To":
+        ($folder==2?"To (pending)":"(Uh?)"))).
+        " ".
+        ($name?"$name ":"").                      # name
+        ($firstName?"$firstName ":"").            # firstName
+        ($name||$firstName?"($phone)":"$phone").  # phone
+        " ".
+        $timestamp.                               # timestamp
+        "\n".
+        $text.                                    # text
+        "\n\n"
+    )
+};
 my $type        = "txt";
 my $version     = 0;
 
@@ -339,6 +349,8 @@ John, the switch should be set to something like:
 =head1 SEE ALSO
 
 L<Palm::SMS>, L<Palm::PDB>, L<smssync>
+
+L<Palm::Treo680MessagesDB>, L<treo680smsdump>
 
 =head1 AUTHOR
 

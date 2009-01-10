@@ -7,4 +7,4 @@ t/Palm-SMS.t
 t/sample.pdb
 lib/Palm/SMS.pm
 bin/smsdump
-META.yml
+META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,20 +1,27 @@
 --- #YAML:1.0
-# META.yml
-#
-# $Id: META.yml,v 1.5 2005/01/28 20:57:42 lolo Exp $
-
-name:         Palm-SMS
-version:      0.02
-license:      GPL
-installdirs:  site
-distribution_type: module
+name:               Palm-SMS
+version:            0.03
+abstract:           parse SMS database files
+author:
+    - Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
+license:            unknown
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
 requires:
-  Palm::Raw 0
-
-recommends:
-  Palm::PDB 0
-  Getopt::Long 0
-  Pod::Usage 0
-  Date::Format 0
-  File::Basename 0
-  Text::Wrap 0
+    Date::Format:    0
+    File::Basename:  0
+    Getopt::Long:    0
+    Palm::PDB:       0
+    Palm::Raw:       0
+    Pod::Usage:      0
+    Test::More:      0
+    Text::Wrap:      0
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.48
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4

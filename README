@@ -1,9 +1,8 @@
-Palm-SMS version 0.01
-=====================
-
 This is Palm::SMS, a Perl module for reading, manipulating, and
 writing the .pdb files used by Handspring SMS application on PalmOS
-devices such as Handspring Treo 270.
+devices such as Handspring Treo 270.  More recent devices have
+partial support, and will use other device-specific modules if they
+are available.
 
 Palm::SMS module is the result of a reverse engineering attempt of
 trasforming a Handspring Treo 270 SMS PDB file into a plain text file.
@@ -20,115 +19,9 @@ I heard rumors that SMS format changes with GSM network providers.
 Please, contact me if this module cannot correctly handle your
 messages, hopefully attaching a patch which corrects the shortcoming.
 
-
-INSTALLATION
-
 To install this module type the following:
 
    perl Makefile.PL
    make
    make test
    make install
-
-
-DEPENDENCIES
-
-This module requires that at least
-
-  Palm::Raw
-
-is installed on your system.  To be productive, you'll surely want to
-have
-
-  Palm::PDB
-
-as well.  Both modules are provided by Andrew Arensburger's p5-Palm
-library.
-
-
-The utility smsdump requires the following modules:
-
-  Getopt::Long
-  Pod::Usage
-  File::Basename
-  Date::Format
-  Text::Wrap
-
-which should all be available in a standard Perl installation.
-
-
-DOCUMENTATION
-
-All documentation is in the form of PODs embedded in the module files
-themselves. Use
-
-  pod2text lib/Palm/SMS.pm
-  pod2text bin/smsdump
-
-
-NOTEWORTHY CHANGES
-
-This is a list of user visible changes between each module release.
-If you need detailed W5(tm) (What, When, Where, Who, and Why ;-) change
-log, please, consult the ChangeLog file.
-
-
-0.02  Fri Jan 28 09:48:18 CET 2005
-
-  Enanched and cleaned documentation via podchecker.
-
-  0.02  smsdump
-
-    * Added three new switches:
-      --date-format: specify how message timestamps should be
-        formatted
-      --text-format: customize txt output
-      --filter: allow to selectively include messages to print
-
-0.01  Sun Jan  2 10:08:13 CET 2005
-
-  0.01  Palm::SMS
-
-    * First module release which provides the basic methods required
-      by underlying Palm::Raw for reading and writing SMS PDB files.
-
-  0.01  smsdump
-
-    * First draft of smsdump utility: it is possible to convert a
-      single PDB file to a plain text or a bunch of raw data.
-
-
-FEEDBACK
-
-If you have any comments, suggestions, bug reports, patches, etc.,
-please send mail to the maintainer, Lorenzo Cappelletti, at
-<lorenzo.cappelletti@email.it>.
-
-
-AUTHORS AND CONTRIBUTORS
-
-Lorenzo Cappelletti <lorenzo.cappelletti@email.it>
-  principal perpetrator
-
-
-COPYRIGHT AND LICENCE
-
-Copyright (C) 2005 by Lorenzo Cappelletti
-
-This program is Copyright 2004 by Lorenzo Cappelletti.  This program
-is free software; you can redistribute it and/or modify it under the
-terms of the Perl Artistic License or the GNU General Public License
-as pub- lished by the Free Software Foundation; either version 2 of
-the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111, USA.
-
-
-  $Id: README,v 1.4 2005/01/28 20:57:42 lolo Exp $
